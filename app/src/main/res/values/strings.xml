@@ -81,6 +81,7 @@
     <string name="questionset">Do you want to set current path as home for this tab?</string>
     <string name="directorysort">Directory Sort Mode</string>
     <string name="sortby">Sort By</string>
+    <string name="sort_only_this">Only this folder</string>
     <string name="theme">Theme</string>
     <string name="random">Random Skin</string>
     <string name="random_summary">Sets random primary color at startup</string>
@@ -452,7 +453,7 @@
     <string name="permission_group">Group</string>
     <string name="permission_other">Other</string>
     <string name="clipboard_path_copy">Path copied to clipboard</string>
-    <string name="service_timer">Time Elapsed</string>
+    <string name="service_timer">Time elapsed</string>
     <string name="please_wait">Please Wait</string>
 
     <string name="cloud_connection">Cloud Connection</string>
@@ -632,6 +633,13 @@
     <string name="encrypt_folder_save_as">Save Encrypted Folder As&#8230;</string>
     <string name="encrypt_file_must_end_with_aze">Encrypted files must use \".aze\" as the file extension.</string>
     <string name="cannot_overwrite">Cannot overwrite file.</string>
+    <string name="saved_single_file">File saved as \'%s\'.</string>
+    <string name="saved_multi_files">%d files saved.</string>
+    <string name="create_hidden_file_warn">The created file will be hidden in the file list.</string>
     <string name="grant_apkinstall_permission">App needs permission to install apps continue.</string>
+    <string name="time_remaining">Time remaining</string>
+    <string name="transfer_rate">Transfer rate</string>
+    <string name="unknown">unknown</string>
+    <string name="multiple_invalid_archive_entries">Some files in the archive cannot be extracted; archive may be damaged or came from malicious source.</string>
 </resources>
 

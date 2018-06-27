@@ -1,6 +1,8 @@
 /*
- * Copyright (C) 2014 Arpit Khurana <arpitkh96@gmail.com>, Vishal Nehra <vishalmeham2@gmail.com>,
- *                      Emmanuel Messulam<emmanuelbendavid@gmail.com>
+ * MainActivity.java
+ *
+ * Copyright (C) 2014-2018 Arpit Khurana <arpitkh96@gmail.com>, Vishal Nehra <vishalmeham2@gmail.com>,
+ * Emmanuel Messulam<emmanuelbendavid@gmail.com>, Raymond Lai <airwave209gt at gmail.com> and Contributors.
  *
  * This file is part of Amaze File Manager.
  *
@@ -28,7 +30,6 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Color;
@@ -46,9 +47,9 @@ import android.os.HandlerThread;
 import android.service.quicksettings.TileService;
 import android.support.annotation.ColorInt;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.Snackbar;
-import android.support.v4.app.ActivityCompat.OnRequestPermissionsResultCallback;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.app.LoaderManager;
@@ -71,7 +72,6 @@ import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.amaze.filemanager.R;
 import com.amaze.filemanager.activities.superclasses.PermissionsActivity;
-import com.amaze.filemanager.activities.superclasses.ThemedActivity;
 import com.amaze.filemanager.asynchronous.asynctasks.DeleteTask;
 import com.amaze.filemanager.asynchronous.asynctasks.MoveFiles;
 import com.amaze.filemanager.asynchronous.asynctasks.PrepareCopyTask;
@@ -82,6 +82,7 @@ import com.amaze.filemanager.database.CryptHandler;
 import com.amaze.filemanager.database.TabHandler;
 import com.amaze.filemanager.database.UtilsHandler;
 import com.amaze.filemanager.database.models.CloudEntry;
+import com.amaze.filemanager.database.models.OperationData;
 import com.amaze.filemanager.database.models.Tab;
 import com.amaze.filemanager.exceptions.CloudPluginException;
 import com.amaze.filemanager.filesystem.FileUtil;
@@ -96,7 +97,7 @@ import com.amaze.filemanager.fragments.AppsListFragment;
 import com.amaze.filemanager.fragments.CloudSheetFragment;
 import com.amaze.filemanager.fragments.CloudSheetFragment.CloudConnectionCallbacks;
 import com.amaze.filemanager.fragments.CompressedExplorerFragment;
-import com.amaze.filemanager.fragments.FTPServerFragment;
+import com.amaze.filemanager.fragments.FtpServerFragment;
 import com.amaze.filemanager.fragments.MainFragment;
 import com.amaze.filemanager.fragments.ProcessViewerFragment;
 import com.amaze.filemanager.fragments.SearchWorkerFragment;
@@ -159,7 +160,7 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
     public static final Pattern DIR_SEPARATOR = Pattern.compile("/");
     public static final String TAG_ASYNC_HELPER = "async_helper";
 
-    private DataUtils dataUtils = DataUtils.getInstance();
+    private DataUtils dataUtils;
 
     public String path = "";
     public boolean mReturnIntent = false;
@@ -180,6 +181,9 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
     // oppathList - the paths at which certain operation needs to be performed (pairs with oparrayList)
     public String oppathe, oppathe1;
     public ArrayList<String> oppatheList;
+
+    // This holds the Uris to be written at initFabToSave()
+    private ArrayList<Uri> urisToBeSaved;
 
     /**
      * @deprecated use getCurrentMainFragment()
@@ -244,7 +248,7 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
     public static final String ARGS_INTENT_ACTION_VIEW_MIME_FOLDER = "resource/folder";
 
     private static final String CLOUD_AUTHENTICATOR_GDRIVE = "android.intent.category.BROWSABLE";
-    private static final String CLOUD_AUTHENTICATOR_REDIRECT_URI = "com.amaze.filemanager:/oauth2redirect";
+    private static final String CLOUD_AUTHENTICATOR_REDIRECT_URI = "com.amaze.filemanager:/auth";
 
     // the current visible tab, either 0 or 1
     public static int currentTab;
@@ -267,50 +271,7 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
     @Override
     public void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !checkStoragePermission()) {
-            requestStoragePermission(() -> {
-                drawer.refreshDrawer();
-                TabFragment tabFragment = getTabFragment();
-                boolean b = getBoolean(PREFERENCE_NEED_TO_SET_HOME);
-                //reset home and current paths according to new storages
-                if (b) {
-                    tabHandler.clear();
-
-                    if (drawer.getPhoneStorageCount() > 1) {
-                        tabHandler.addTab(new Tab(1, drawer.getSecondPath(), "/"));
-                    } else {
-                        tabHandler.addTab(new Tab(1, "/", "/"));
-                    }
-
-                    if (drawer.getFirstPath() != null) {
-                        String pa = drawer.getFirstPath();
-                        tabHandler.addTab(new Tab(2, pa, pa));
-                    } else {
-                        tabHandler.addTab(new Tab(2, drawer.getSecondPath(), "/"));
-                    }
-                    if (tabFragment != null) {
-                        Fragment main = tabFragment.getFragmentAtIndex(0);
-                        if (main != null)
-                            ((MainFragment) main).updateTabWithDb(tabHandler.findTab(1));
-                        Fragment main1 = tabFragment.getFragmentAtIndex(1);
-                        if (main1 != null)
-                            ((MainFragment) main1).updateTabWithDb(tabHandler.findTab(2));
-                    }
-                    getPrefs().edit().putBoolean(PREFERENCE_NEED_TO_SET_HOME, false).commit();
-                } else {
-                    //just refresh list
-                    if (tabFragment != null) {
-                        Fragment main = tabFragment.getFragmentAtIndex(0);
-                        if (main != null)
-                            ((MainFragment) main).updateList();
-                        Fragment main1 = tabFragment.getFragmentAtIndex(1);
-                        if (main1 != null)
-                            ((MainFragment) main1).updateList();
-                    }
-                }
-            });
-        }
+        dataUtils = DataUtils.getInstance();
 
         initialisePreferences();
         initializeInteractiveShell();
@@ -394,9 +355,11 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
             getPrefs().edit().putBoolean(PREFERENCE_BOOKMARKS_ADDED, true).commit();
         }
 
-        AppConfig.runInBackground(new AppConfig.CustomAsyncCallbacks() {
+        checkForExternalPermission();
+
+        AppConfig.runInParallel(new AppConfig.CustomAsyncCallbacks<Void, Void>(null) {
             @Override
-            public <E> E doInBackground() {
+            public Void doInBackground() {
 
                 dataUtils.setHiddenFiles(utilsHandler.getHiddenFilesConcurrentRadixTree());
                 dataUtils.setHistory(utilsHandler.getHistoryLinkedList());
@@ -412,7 +375,7 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
             }
 
             @Override
-            public Void onPostExecute(Object result) {
+            public void onPostExecute(Void result) {
 
                 drawer.refreshDrawer();
 
@@ -432,7 +395,7 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
                         // tile preferences, open ftp fragment
 
                         FragmentTransaction transaction2 = getSupportFragmentManager().beginTransaction();
-                        transaction2.replace(R.id.content_frame, new FTPServerFragment());
+                        transaction2.replace(R.id.content_frame, new FtpServerFragment());
                         appBarLayout.animate().translationY(0).setInterpolator(new DecelerateInterpolator(2)).start();
 
                         drawer.setSomethingSelected(true);
@@ -461,24 +424,55 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
                     operation = savedInstanceState.getInt(KEY_OPERATION);
                     //mainFragment = (Main) savedInstanceState.getParcelable("main_fragment");
                 }
-                return null;
-            }
-
-            @Override
-            public Void onPreExecute() {
-                return null;
-            }
-
-            @Override
-            public Void publishResult(Object... result) {
-                return null;
-            }
-
-            @Override
-            public <T> T[] params() {
-                return null;
             }
         });
+    }
+
+    private void checkForExternalPermission() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !checkStoragePermission()) {
+            requestStoragePermission(() -> {
+                drawer.refreshDrawer();
+                TabFragment tabFragment = getTabFragment();
+                boolean b = getBoolean(PREFERENCE_NEED_TO_SET_HOME);
+                //reset home and current paths according to new storages
+                if (b) {
+                    tabHandler.clear();
+
+                    if (drawer.getPhoneStorageCount() > 1) {
+                        tabHandler.addTab(new Tab(1, drawer.getSecondPath(), "/"));
+                    } else {
+                        tabHandler.addTab(new Tab(1, "/", "/"));
+                    }
+
+                    if (drawer.getFirstPath() != null) {
+                        String pa = drawer.getFirstPath();
+                        tabHandler.addTab(new Tab(2, pa, pa));
+                    } else {
+                        tabHandler.addTab(new Tab(2, drawer.getSecondPath(), "/"));
+                    }
+                    if (tabFragment != null) {
+                        Fragment main = tabFragment.getFragmentAtIndex(0);
+                        if (main != null)
+                            ((MainFragment) main).updateTabWithDb(tabHandler.findTab(1));
+                        Fragment main1 = tabFragment.getFragmentAtIndex(1);
+                        if (main1 != null)
+                            ((MainFragment) main1).updateTabWithDb(tabHandler.findTab(2));
+                    }
+                    getPrefs().edit().putBoolean(PREFERENCE_NEED_TO_SET_HOME, false).commit();
+                } else {
+                    //just refresh list
+                    if (tabFragment != null) {
+                        Fragment main = tabFragment.getFragmentAtIndex(0);
+                        if (main != null)
+                            ((MainFragment) main).updateList();
+                        Fragment main1 = tabFragment.getFragmentAtIndex(1);
+                        if (main1 != null)
+                            ((MainFragment) main1).updateList();
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -560,9 +554,25 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
 
         floatingActionButton.setMenuButtonIcon(R.drawable.ic_file_download_white_24dp);
         floatingActionButton.getMenuButton().setOnClickListener(v -> {
-            FileUtil.writeUriToStorage(MainActivity.this, uris, getContentResolver(), getCurrentMainFragment().getCurrentPath());
-            Toast.makeText(MainActivity.this, getResources().getString(R.string.saving), Toast.LENGTH_LONG).show();
-            finish();
+            if(uris != null && uris.size() > 0) {
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    File folder = new File(getCurrentMainFragment().getCurrentPath());
+                    int result = mainActivityHelper.checkFolder(folder, MainActivity.this);
+                    if(result == MainActivityHelper.WRITABLE_OR_ON_SDCARD){
+                        FileUtil.writeUriToStorage(MainActivity.this, uris, getContentResolver(), getCurrentMainFragment().getCurrentPath());
+                        finish();
+                    } else {
+                        //Trigger SAF intent, keep uri until finish
+                        operation = DataUtils.SAVE_FILE;
+                        urisToBeSaved = uris;
+                        mainActivityHelper.checkFolder(folder, MainActivity.this);
+                    }
+                } else {
+                    FileUtil.writeUriToStorage(MainActivity.this, uris, getContentResolver(), getCurrentMainFragment().getCurrentPath());
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.saving), Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }
         });
         //Ensure the FAB menu is visible
         floatingActionButton.setVisibility(View.VISIBLE);
@@ -746,7 +756,7 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
             } else {
                 compressedExplorerFragment.mActionMode.finish();
             }
-        } else if (fragment instanceof FTPServerFragment) {
+        } else if (fragment instanceof FtpServerFragment) {
             //returning back from FTP server
             if (path != null && path.length() > 0) {
                 HybridFile file = new HybridFile(OpenMode.UNKNOWN, path);
@@ -882,7 +892,7 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
             invalidatePasteButton(menu.findItem(R.id.paste));
             findViewById(R.id.buttonbarframe).setVisibility(View.VISIBLE);
         } else if (fragment instanceof AppsListFragment || fragment instanceof ProcessViewerFragment
-                || fragment instanceof FTPServerFragment) {
+                || fragment instanceof FtpServerFragment) {
             appBarLayout.setExpanded(true);
             menu.findItem(R.id.sethome).setVisible(false);
             if (indicator_layout != null) indicator_layout.setVisibility(View.GONE);
@@ -1015,25 +1025,24 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
                 if (ma.IS_LIST) {
                     if (pathLayout == DataUtils.LIST) {
                         AppConfig.runInBackground(() -> {
-                            utilsHandler.removeListViewPath(mainFragment.getCurrentPath());
+                            utilsHandler.removeFromDatabase(new OperationData(UtilsHandler.Operation.LIST,
+                                    mainFragment.getCurrentPath()));
                         });
                     }
-
-                    AppConfig.runInBackground(() -> {
-                        utilsHandler.addGridView(mainFragment.getCurrentPath());
-                    });
+                    utilsHandler.saveToDatabase(new OperationData(UtilsHandler.Operation.GRID,
+                            mainFragment.getCurrentPath()));
 
                     dataUtils.setPathAsGridOrList(ma.getCurrentPath(), DataUtils.GRID);
                 } else {
                     if (pathLayout == DataUtils.GRID) {
                         AppConfig.runInBackground(() -> {
-                            utilsHandler.removeGridViewPath(mainFragment.getCurrentPath());
+                            utilsHandler.removeFromDatabase(new OperationData(UtilsHandler.Operation.GRID,
+                                    mainFragment.getCurrentPath()));
                         });
                     }
 
-                    AppConfig.runInBackground(() -> {
-                        utilsHandler.addListView(mainFragment.getCurrentPath());
-                    });
+                    utilsHandler.saveToDatabase(new OperationData(UtilsHandler.Operation.LIST,
+                            mainFragment.getCurrentPath()));
 
                     dataUtils.setPathAsGridOrList(ma.getCurrentPath(), DataUtils.LIST);
                 }
@@ -1196,9 +1205,6 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
         cryptHandler.close();
         
         SshConnectionPool.getInstance().expungeAllConnections();
-
-        /*if (mainFragment!=null)
-            mainFragment = null;*/
     }
 
     /**
@@ -1365,13 +1371,18 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
                     break;
                 case DataUtils.NEW_FILE:
                     mainActivityHelper.mkFile(new HybridFile(OpenMode.FILE, oppathe), getCurrentMainFragment());
-
                     break;
                 case DataUtils.EXTRACT:
                     mainActivityHelper.extractFile(new File(oppathe));
                     break;
                 case DataUtils.COMPRESS:
                     mainActivityHelper.compressFiles(new File(oppathe), oparrayList);
+                    break;
+                case DataUtils.SAVE_FILE:
+                    FileUtil.writeUriToStorage(this, urisToBeSaved, getContentResolver(), getCurrentMainFragment().getCurrentPath());
+                    urisToBeSaved = null;
+                    finish();
+                    break;
             }
             operation = -1;
         } else if (requestCode == REQUEST_CODE_SAF) {
@@ -1673,17 +1684,16 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
     }
 
     @Override
-    public void addConnection(boolean edit, final String name, final String path, final String encryptedPath,
-                              final String oldname, final String oldPath) {
+    public void addConnection(boolean edit, @NonNull final String name, @NonNull final String path, @Nullable final String encryptedPath,
+                              @Nullable final String oldname, @Nullable final String oldPath) {
         String[] s = new String[]{name, path};
         if (!edit) {
             if ((dataUtils.containsServer(path)) == -1) {
                 dataUtils.addServer(s);
                 drawer.refreshDrawer();
 
-                AppConfig.runInBackground(() -> {
-                    utilsHandler.addSmb(name, encryptedPath);
-                });
+                utilsHandler.saveToDatabase(new OperationData(UtilsHandler.Operation.SMB, name, encryptedPath));
+
                 //grid.addPath(name, encryptedPath, DataUtils.SMB, 1);
                 MainFragment ma = getCurrentMainFragment();
                 if (ma != null) getCurrentMainFragment().loadlist(path, false, OpenMode.UNKNOWN);
@@ -1716,7 +1726,8 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
             dataUtils.removeServer(i);
 
             AppConfig.runInBackground(() -> {
-                utilsHandler.removeSmbPath(name, path);
+                utilsHandler.removeFromDatabase(new OperationData(UtilsHandler.Operation.SMB, name,
+                        path));
             });
             //grid.removePath(name, path, DataUtils.SMB);
             drawer.refreshDrawer();
@@ -1726,33 +1737,34 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
 
     @Override
     public void onHiddenFileAdded(String path) {
-        utilsHandler.addHidden(path);
+        utilsHandler.saveToDatabase(new OperationData(UtilsHandler.Operation.HIDDEN, path));
     }
 
     @Override
     public void onHiddenFileRemoved(String path) {
-        utilsHandler.removeHiddenPath(path);
+        utilsHandler.removeFromDatabase(new OperationData(UtilsHandler.Operation.HIDDEN, path));
     }
 
     @Override
     public void onHistoryAdded(String path) {
-        utilsHandler.addHistory(path);
+        utilsHandler.saveToDatabase(new OperationData(UtilsHandler.Operation.HISTORY, path));
     }
 
     @Override
     public void onBookAdded(String[] path, boolean refreshdrawer) {
-        utilsHandler.addBookmark(path[0], path[1]);
+        utilsHandler.saveToDatabase(new OperationData(UtilsHandler.Operation.BOOKMARKS, path[0], path[1]));
         if (refreshdrawer) drawer.refreshDrawer();
     }
 
     @Override
     public void onHistoryCleared() {
-        utilsHandler.clearHistoryTable();
+        utilsHandler.clearTable(UtilsHandler.Operation.HISTORY);
     }
 
     @Override
     public void delete(String title, String path) {
-        utilsHandler.removeBookmarksPath(title, path);
+        utilsHandler.removeFromDatabase(new OperationData(UtilsHandler.Operation.BOOKMARKS, title,
+                path));
         drawer.refreshDrawer();
 
     }
@@ -1906,9 +1918,10 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
             return;
         }
 
-        cloudSyncTask = new AsyncTask<Void, Void, Boolean>() {
+        AppConfig.runInParallel(new AppConfig.CustomAsyncCallbacks<Void, Boolean>(null) {
             @Override
-            protected Boolean doInBackground(Void... params) {
+            @NonNull
+            public Boolean doInBackground() {
                 boolean hasUpdatedDrawer = false;
 
                 if (data.getCount() > 0 && data.moveToFirst()) {
@@ -2125,13 +2138,12 @@ public class MainActivity extends PermissionsActivity implements SmbConnectionLi
             }
 
             @Override
-            protected void onPostExecute(Boolean refreshDrawer) {
-                super.onPostExecute(refreshDrawer);
-                if (refreshDrawer) {
+            public void onPostExecute(@NonNull Boolean result) {
+                if (result) {
                     drawer.refreshDrawer();
                 }
             }
-        }.execute();
+        });
     }
 
     @Override

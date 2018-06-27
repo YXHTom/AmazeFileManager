@@ -1,3 +1,24 @@
+/*
+ * MainActivityHelper.java
+ *
+ * Copyright (C) 2015-2018 Arpit Khurana <arpitkh96@gmail.com>, Vishal Nehra <vishalmeham2@gmail.com>,
+ * Emmanuel Messulam<emmanuelbendavid@gmail.com>, Raymond Lai <airwave209gt at gmail.com> and Contributors.
+ *
+ * This file is part of Amaze File Manager.
+ *
+ * Amaze File Manager is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 package com.amaze.filemanager.utils;
 
 import android.app.Activity;
@@ -8,6 +29,7 @@ import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.StringRes;
 import android.support.design.widget.BottomSheetDialogFragment;
 import android.support.v4.app.Fragment;
@@ -15,6 +37,7 @@ import android.support.v4.app.FragmentManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -37,6 +60,7 @@ import com.amaze.filemanager.fragments.CloudSheetFragment;
 import com.amaze.filemanager.fragments.MainFragment;
 import com.amaze.filemanager.fragments.SearchWorkerFragment;
 import com.amaze.filemanager.fragments.TabFragment;
+import com.amaze.filemanager.fragments.preference_fragments.PreferencesConstants;
 import com.amaze.filemanager.ui.dialogs.GeneralDialogCreation;
 import com.amaze.filemanager.ui.views.WarnableTextInputValidator;
 import com.amaze.filemanager.utils.files.CryptUtil;
@@ -50,6 +74,8 @@ import java.util.ArrayList;
 public class MainActivityHelper {
 
     public static final int NEW_FOLDER = 0, NEW_FILE = 1, NEW_SMB = 2, NEW_CLOUD = 3;
+
+    private static final String NEW_FILE_TXT_EXTENSION = ".txt";
 
     private MainActivity mainActivity;
     private DataUtils dataUtils = DataUtils.getInstance();
@@ -136,16 +162,23 @@ public class MainActivityHelper {
      * @param ma       {@link MainFragment} current fragment
      */
     void mkfile(final OpenMode openMode, final String path, final MainFragment ma) {
-        mk(R.string.newfile, ".txt", (dialog, which) -> {
+        mk(R.string.newfile,  NEW_FILE_TXT_EXTENSION, (dialog, which) -> {
             EditText textfield = dialog.getCustomView().findViewById(R.id.singleedittext_input);
             mkFile(new HybridFile(openMode, path + "/" + textfield.getText().toString()), ma);
             dialog.dismiss();
         }, (text) -> {
             boolean isValidFilename = FileUtil.isValidFilename(text);
 
-            if (isValidFilename && text.length() > 0 && !text.toLowerCase().endsWith(".txt")) {
-                return new WarnableTextInputValidator.ReturnState(
-                        WarnableTextInputValidator.ReturnState.STATE_WARNING, R.string.create_file_suggest_txt_extension);
+            //The redundant equalsIgnoreCase() is needed since ".txt" itself does not end with .txt (i.e. recommended as ".txt.txt"
+            if (isValidFilename && text.length() > 0) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mainActivity);
+                if(text.startsWith(".") && !prefs.getBoolean(PreferencesConstants.PREFERENCE_SHOW_HIDDENFILES, false)){
+                    return new WarnableTextInputValidator.ReturnState(
+                            WarnableTextInputValidator.ReturnState.STATE_WARNING, R.string.create_hidden_file_warn);
+                } else if(!text.toLowerCase().endsWith(NEW_FILE_TXT_EXTENSION)) {
+                    return new WarnableTextInputValidator.ReturnState(
+                            WarnableTextInputValidator.ReturnState.STATE_WARNING, R.string.create_file_suggest_txt_extension);
+                }
             } else {
                 if (!isValidFilename) {
                     return new WarnableTextInputValidator.ReturnState(
@@ -230,21 +263,12 @@ public class MainActivityHelper {
         TextView textView = view.findViewById(R.id.description);
         textView.setText(mainActivity.getString(R.string.needsaccesssummary) + path + mainActivity.getString(R.string.needsaccesssummary1));
         ((ImageView) view.findViewById(R.id.icon)).setImageResource(R.drawable.sd_operate_step);
-        x.positiveText(R.string.open);
-        x.negativeText(R.string.cancel);
-        x.positiveColor(accentColor);
-        x.negativeColor(accentColor);
-        x.callback(new MaterialDialog.ButtonCallback() {
-            @Override
-            public void onPositive(MaterialDialog materialDialog) {
-                triggerStorageAccessFramework();
-            }
-
-            @Override
-            public void onNegative(MaterialDialog materialDialog) {
-                Toast.makeText(mainActivity, R.string.error, Toast.LENGTH_SHORT).show();
-            }
-        });
+        x.positiveText(R.string.open)
+            .negativeText(R.string.cancel)
+            .positiveColor(accentColor)
+            .negativeColor(accentColor)
+            .onPositive((dialog, which)->triggerStorageAccessFramework())
+            .onNegative((dialog, which)->Toast.makeText(mainActivity, R.string.error, Toast.LENGTH_SHORT).show());
         final MaterialDialog y = x.build();
         y.show();
     }

@@ -71,7 +71,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
-            <intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <data android:mimeType="application/zip" />
                 <data android:mimeType="application/rar" />
@@ -89,13 +89,13 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="com.amaze.filemanager" />
-                <data android:mimeType="resource/folder" />
             </intent-filter>
 
-            <intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
                 <action android:name="android.intent.action.VIEW" />
                 <data android:mimeType="resource/folder" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="com.amaze.filemanager" />
             </intent-filter>
 
             <intent-filter android:label="@string/intent_save_as">
@@ -122,6 +122,7 @@
             android:name=".activities.TextEditorActivity"
             android:theme="@style/appCompatLight">
             <intent-filter
+                tools:ignore="AppLinkUrlError"
                 android:label="Amaze Text Editor">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT" />
@@ -138,6 +139,7 @@
             android:theme="@style/appCompatLight"
             android:screenOrientation="locked">
             <intent-filter
+                tools:ignore="AppLinkUrlError"
                 android:label="Amaze Database Reader">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT" />
@@ -176,11 +178,11 @@
             />
 
         <service
-            android:name=".asynchronous.services.ftp.FTPService"
+            android:name=".asynchronous.services.ftp.FtpService"
             android:enabled="true"
             android:exported="true" />
 
-        <service android:name=".asynchronous.services.ftp.FTPTileService"
+        <service android:name=".asynchronous.services.ftp.FtpTileService"
             android:icon="@drawable/ic_ftp_dark"
             android:label="@string/ftp"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
@@ -191,7 +193,7 @@
         </service>
 
         <receiver
-            android:name=".asynchronous.services.ftp.FTPReceiver"
+            android:name=".asynchronous.services.ftp.FtpReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.amaze.filemanager.services.ftpservice.FTPReceiver.ACTION_START_FTPSERVER" />
@@ -200,7 +202,7 @@
         </receiver>
 
         <receiver
-            android:name="com.amaze.filemanager.ui.notifications.FTPNotification"
+            android:name="com.amaze.filemanager.ui.notifications.FtpNotification"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.amaze.filemanager.services.ftpservice.FTPReceiver.FTPSERVER_STARTED" />

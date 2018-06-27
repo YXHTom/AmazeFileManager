@@ -79,6 +79,7 @@
   <string name="questionset">您要將此頁籤的目前路徑設為首頁嗎？</string>
   <string name="directorysort">目錄排序方式</string>
   <string name="sortby">排序方式</string>
+  <string name="sort_only_this">僅應用於此目錄</string>
   <string name="theme">主題</string>
   <string name="random">隨機色彩</string>
   <string name="random_summary">每次啟動都使用隨機主題</string>
@@ -575,7 +576,7 @@
   <string name="create_file_suggest_txt_extension">建議以 \".txt\"作為檔案擴展名稱。</string>
   <string name="compress_file_suggest_zip_extension">建議以 \".zip\"作為檔案擴展名稱。</string>
   <string name="ssh_select_pem">選擇認證時使用的 SSH私鑰</string>
-    <string name="got_it">明白！</string>
+  <string name="got_it">明白！</string>
   <string name="password_no_match">密碼不符。</string>
   <string name="password_repeat">重複密碼</string>
   <string name="no_obtainable_info">沒有關於此檔案的資料</string>
@@ -589,9 +590,17 @@
   <string name="reopen_from_source">請嘗試用原程式開啟此檔案。</string>
   <string name="encryption_fail_copy">不能更新在資料庫內的加密檔案記錄。</string>
   <string name="ssh_key_invalid_passphrase">私鑰密碼錯誤。</string>
-    <string name="cannot_overwrite">不能覆蓋原有檔案。</string>
+  <string name="cannot_overwrite">不能覆蓋原有檔案。</string>
   <string name="encrypt_file_must_end_with_aze">加密檔案必須以 .aze為檔案擴展名稱。</string>
   <string name="encrypt_file_save_as">儲存加密檔案為……</string>
   <string name="encrypt_folder_save_as">儲存加密檔案夾為……</string>
   <string name="filename">檔案名稱</string>
+  <string name="saved_single_file">檔案 \'%s\'已儲存。</string>
+  <string name="saved_multi_files">儲存了 %d個檔案。</string>
+  <string name="create_hidden_file_warn">此檔案將會從檔案列表中隱藏。</string>
+  <string name="multiple_invalid_archive_entries">壓縮檔有部份檔案未能解壓；壓縮檔可能已損壞或來自不明的來源。</string>
+    <string name="unknown">未知</string>
+  <string name="transfer_rate">傳輸速率</string>
+  <string name="time_remaining">剩餘時間</string>
+  <string name="grant_apkinstall_permission">程式需要安裝程式的權限以繼續。</string>
 </resources>

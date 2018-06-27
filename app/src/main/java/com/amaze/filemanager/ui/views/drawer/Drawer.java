@@ -34,7 +34,7 @@ import com.amaze.filemanager.filesystem.RootHelper;
 import com.amaze.filemanager.filesystem.SingletonUsbOtg;
 import com.amaze.filemanager.fragments.AppsListFragment;
 import com.amaze.filemanager.fragments.CloudSheetFragment;
-import com.amaze.filemanager.fragments.FTPServerFragment;
+import com.amaze.filemanager.fragments.FtpServerFragment;
 import com.amaze.filemanager.fragments.MainFragment;
 import com.amaze.filemanager.fragments.preference_fragments.PreferencesConstants;
 import com.amaze.filemanager.fragments.preference_fragments.QuickAccessPref;
@@ -83,7 +83,7 @@ public class Drawer implements NavigationView.OnNavigationItemSelectedListener {
 
     private MainActivity mainActivity;
     private Resources resources;
-    private DataUtils dataUtils = DataUtils.getInstance();
+    private DataUtils dataUtils;
 
     private ActionViewStateManager actionViewStateManager;
     private boolean isSomethingSelected;
@@ -103,6 +103,7 @@ public class Drawer implements NavigationView.OnNavigationItemSelectedListener {
     public Drawer(MainActivity mainActivity) {
         this.mainActivity = mainActivity;
         resources = mainActivity.getResources();
+        dataUtils = DataUtils.getInstance();
 
         drawerHeaderLayout = mainActivity.getLayoutInflater().inflate(R.layout.drawerheader, null);
         drawerHeaderParent = drawerHeaderLayout.findViewById(R.id.drawer_header_parent);
@@ -363,7 +364,7 @@ public class Drawer implements NavigationView.OnNavigationItemSelectedListener {
         addNewItem(menu, LASTGROUP, order++, R.string.ftp,
                 new MenuMetadata(() -> {
                     FragmentTransaction transaction2 = mainActivity.getSupportFragmentManager().beginTransaction();
-                    transaction2.replace(R.id.content_frame, new FTPServerFragment());
+                    transaction2.replace(R.id.content_frame, new FtpServerFragment());
                     mainActivity.getAppbar()
                             .getAppbarLayout()
                             .animate()

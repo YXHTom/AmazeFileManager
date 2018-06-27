@@ -77,6 +77,7 @@ import com.amaze.filemanager.asynchronous.asynctasks.LoadFilesListTask;
 import com.amaze.filemanager.asynchronous.handlers.FileHandler;
 import com.amaze.filemanager.database.CloudHandler;
 import com.amaze.filemanager.database.CryptHandler;
+import com.amaze.filemanager.database.SortHandler;
 import com.amaze.filemanager.database.models.EncryptedEntry;
 import com.amaze.filemanager.database.models.Tab;
 import com.amaze.filemanager.filesystem.CustomFileObserver;
@@ -124,6 +125,7 @@ import static com.amaze.filemanager.fragments.preference_fragments.PreferencesCo
 public class MainFragment extends android.support.v4.app.Fragment implements BottomBarButtonPath {
 
     public ActionMode mActionMode;
+    //TODO refactor
     public int sortby, dsort, asc;
     public String home;
     public boolean selection, results = false;
@@ -144,7 +146,7 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
      * This is not an exact copy of the elements in the adapter
      */
     private ArrayList<LayoutElementParcelable> LIST_ELEMENTS;
-    private RecyclerAdapter adapter;
+    public RecyclerAdapter adapter;
     private SharedPreferences sharedPref;
     private Resources res;
 
@@ -166,7 +168,7 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
     private View actionModeView;
     private FastScroller fastScroller;
     private CustomFileObserver customFileObserver;
-    private DataUtils dataUtils = DataUtils.getInstance();
+    private DataUtils dataUtils;
     private boolean isEncryptOpen = false;       // do we have to open a file when service is begin destroyed
     private HybridFileParcelable encryptBaseFile;            // the cached base file which we're to open, delete it later
 
@@ -196,6 +198,7 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
 
         setRetainInstance(true);
 
+        dataUtils = DataUtils.getInstance();
         utilsProvider = getMainActivity().getUtilsProvider();
         sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
         res = getResources();
@@ -803,7 +806,7 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
                             mediaScannerConnection = new MediaScannerConnection(context, mediaScannerConnectionClient);
                             //FileUtils.scanFile(context, mediaScannerConnection, path);
                         } else {
-                            FileUtils.scanFile(arg, context);
+                            FileUtils.scanFile(new File(arg), context);
                         }
                     }
                     //break;
@@ -1158,8 +1161,8 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
     private LayoutElementParcelable getBackElement() {
         if (back == null) {
             back = new LayoutElementParcelable("..", "", "",
-                    getString(R.string.goback), 0, false, true,
-                    "", getBoolean(PREFERENCE_SHOW_THUMB));
+                    getString(R.string.goback), 0, false, "",
+                    true, getBoolean(PREFERENCE_SHOW_THUMB), OpenMode.UNKNOWN);
         }
 
         return back;
@@ -1394,11 +1397,11 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
      * Final value of {@link #sortby} varies from 0 to 3
      */
     public void getSortModes() {
-        int t = Integer.parseInt(sharedPref.getString("sortby", "0"));
+        int t = SortHandler.getSortType(getContext(), getCurrentPath());
         if (t <= 3) {
             sortby = t;
             asc = 1;
-        } else if (t > 3) {
+        } else {
             asc = -1;
             sortby = t - 4;
         }
@@ -1449,12 +1452,13 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
         }
     }
 
-    public ArrayList<LayoutElementParcelable> addToSmb(SmbFile[] mFile, String path) throws SmbException {
-        ArrayList<LayoutElementParcelable> a = new ArrayList<>();
+    public ArrayList<LayoutElementParcelable> addToSmb(SmbFile[] mFile, String path, boolean showHiddenFiles) throws SmbException {
+        ArrayList<LayoutElementParcelable> smbFileList = new ArrayList<>();
         if (searchHelper.size() > 500) searchHelper.clear();
         for (SmbFile aMFile : mFile) {
-            if (dataUtils.isFileHidden(aMFile.getPath()))
+            if ((dataUtils.isFileHidden(aMFile.getPath()) || aMFile.isHidden()) && !showHiddenFiles) {
                 continue;
+            }
             String name = aMFile.getName();
             name = (aMFile.isDirectory() && name.endsWith("/")) ? name.substring(0, name.length() - 1) : name;
             if (path.equals(smbPath)) {
@@ -1466,27 +1470,23 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
                 LayoutElementParcelable layoutElement = new LayoutElementParcelable(name, aMFile.getPath(),
                         "", "", "", 0, false,
                         aMFile.lastModified() + "", true,
-                        getBoolean(PREFERENCE_SHOW_THUMB));
+                        getBoolean(PREFERENCE_SHOW_THUMB), OpenMode.SMB);
 
-                layoutElement.setMode(OpenMode.SMB);
                 searchHelper.add(layoutElement.generateBaseFile());
-                a.add(layoutElement);
+                smbFileList.add(layoutElement);
+
             } else {
                 file_count++;
-                try {
-                    LayoutElementParcelable layoutElement = new LayoutElementParcelable(name,
-                            aMFile.getPath(), "", "", Formatter.formatFileSize(getContext(),
-                            aMFile.length()), aMFile.length(), false, aMFile.lastModified() + "",
-                            false, getBoolean(PREFERENCE_SHOW_THUMB));
-                    layoutElement.setMode(OpenMode.SMB);
-                    searchHelper.add(layoutElement.generateBaseFile());
-                    a.add(layoutElement);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                LayoutElementParcelable layoutElement = new LayoutElementParcelable(name,
+                        aMFile.getPath(), "", "", Formatter.formatFileSize(getContext(),
+                        aMFile.length()), aMFile.length(), false, aMFile.lastModified() + "",
+                        false, getBoolean(PREFERENCE_SHOW_THUMB), OpenMode.SMB);
+                layoutElement.setMode(OpenMode.SMB);
+                searchHelper.add(layoutElement.generateBaseFile());
+                smbFileList.add(layoutElement);
             }
         }
-        return a;
+        return smbFileList;
     }
 
     // method to add search result entry to the LIST_ELEMENT arrayList
@@ -1497,11 +1497,10 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
             if (mFile.isDirectory()) {
                 size = "";
                 LayoutElementParcelable layoutElement = new LayoutElementParcelable(f.getPath(), mFile.getPermission(),
-                        mFile.getLink(), size, 0, true, false,
-                        mFile.getDate() + "",
-                        getBoolean(PREFERENCE_SHOW_THUMB));
+                        mFile.getLink(), size, 0, true,
+                        mFile.getDate() + "", false,
+                        getBoolean(PREFERENCE_SHOW_THUMB), mFile.getMode());
 
-                layoutElement.setMode(mFile.getMode());
                 LIST_ELEMENTS.add(layoutElement);
                 folder_count++;
                 return layoutElement;
@@ -1521,9 +1520,8 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
                 try {
                     LayoutElementParcelable layoutElement = new LayoutElementParcelable(f.getPath(),
                             mFile.getPermission(), mFile.getLink(), size, longSize, false,
-                            false, mFile.getDate() + "",
-                            getBoolean(PREFERENCE_SHOW_THUMB));
-                    layoutElement.setMode(mFile.getMode());
+                            mFile.getDate() + "", false,
+                            getBoolean(PREFERENCE_SHOW_THUMB), mFile.getMode());
                     LIST_ELEMENTS.add(layoutElement);
                     file_count++;
                     return layoutElement;
@@ -1547,7 +1545,8 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
     public void hide(String path) {
 
         dataUtils.addHiddenFile(path);
-        if (new File(path).isDirectory()) {
+        File file = new File(path);
+        if (file.isDirectory()) {
             File f1 = new File(path + "/" + ".nomedia");
             if (!f1.exists()) {
                 try {
@@ -1556,7 +1555,7 @@ public class MainFragment extends android.support.v4.app.Fragment implements Bot
                     e.printStackTrace();
                 }
             }
-            FileUtils.scanFile(path, getActivity());
+            FileUtils.scanFile(file, getActivity());
         }
 
     }

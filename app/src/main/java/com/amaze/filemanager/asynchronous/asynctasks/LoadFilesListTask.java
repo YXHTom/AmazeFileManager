@@ -28,7 +28,8 @@ import android.support.v4.util.Pair;
 import android.text.format.Formatter;
 
 import com.amaze.filemanager.R;
-import com.amaze.filemanager.activities.superclasses.ThemedActivity;
+import com.amaze.filemanager.adapters.data.LayoutElementParcelable;
+import com.amaze.filemanager.database.SortHandler;
 import com.amaze.filemanager.database.UtilsHandler;
 import com.amaze.filemanager.exceptions.CloudPluginException;
 import com.amaze.filemanager.filesystem.HybridFile;
@@ -36,7 +37,6 @@ import com.amaze.filemanager.filesystem.HybridFileParcelable;
 import com.amaze.filemanager.filesystem.RootHelper;
 import com.amaze.filemanager.fragments.CloudSheetFragment;
 import com.amaze.filemanager.fragments.MainFragment;
-import com.amaze.filemanager.adapters.data.LayoutElementParcelable;
 import com.amaze.filemanager.utils.DataUtils;
 import com.amaze.filemanager.utils.OTGUtil;
 import com.amaze.filemanager.utils.OnAsyncTaskFinished;
@@ -111,7 +111,7 @@ public class LoadFilesListTask extends AsyncTask<Void, Void, Pair<OpenMode, Arra
 
                 try {
                     SmbFile[] smbFile = hFile.getSmbFile(5000).listFiles();
-                    list = ma.addToSmb(smbFile, path);
+                    list = ma.addToSmb(smbFile, path, showHiddenFiles);
                     openmode = OpenMode.SMB;
                 } catch (SmbAuthException e) {
                     if (!e.getMessage().toLowerCase().contains("denied")) {
@@ -199,7 +199,17 @@ public class LoadFilesListTask extends AsyncTask<Void, Void, Pair<OpenMode, Arra
         }
 
         if (list != null && !(openmode == OpenMode.CUSTOM && ((path).equals("5") || (path).equals("6")))) {
-            Collections.sort(list, new FileListSorter(ma.dsort, ma.sortby, ma.asc));
+            int t = SortHandler.getSortType(ma.getContext(), path);
+            int sortby;
+            int asc;
+            if (t <= 3) {
+                sortby = t;
+                asc = 1;
+            } else {
+                asc = -1;
+                sortby = t - 4;
+            }
+            Collections.sort(list, new FileListSorter(ma.dsort, sortby, asc));
         }
 
         return new Pair<>(openmode, list);
@@ -231,11 +241,10 @@ public class LoadFilesListTask extends AsyncTask<Void, Void, Pair<OpenMode, Arra
                 ma.file_count++;
             }
 
-            LayoutElementParcelable layoutElement = new LayoutElementParcelable(
+            LayoutElementParcelable layoutElement = new LayoutElementParcelable(baseFile.getName(),
                     baseFile.getPath(), baseFile.getPermission(), baseFile.getLink(), size,
-                    longSize, baseFile.isDirectory(), false, baseFile.getDate() + "",
-                    showThumbs);
-            layoutElement.setMode(baseFile.getMode());
+                    longSize, false, baseFile.getDate() + "", baseFile.isDirectory(),
+                    showThumbs, baseFile.getMode());
             return layoutElement;
         }
 
